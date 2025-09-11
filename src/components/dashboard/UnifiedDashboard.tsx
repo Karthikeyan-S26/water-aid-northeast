@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from '@/hooks/use-toast';
 import { 
   FileText, 
   Droplets, 
@@ -39,6 +42,8 @@ const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ user }) => {
   const { t } = useLanguage();
   const [activeForm, setActiveForm] = useState<'symptoms' | 'water' | null>(null);
   const [selectedVillage, setSelectedVillage] = useState<VillageData | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
+  const [activeAdminView, setActiveAdminView] = useState<string | null>(null);
 
   // Mock data for all features
   const stats = {
@@ -131,6 +136,52 @@ const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ user }) => {
       case 'low': return 'bg-success text-success-foreground';
       default: return 'bg-muted text-muted-foreground';
     }
+  };
+
+  const handleDistrictManage = (districtName: string) => {
+    setSelectedDistrict(districtName);
+    toast({
+      title: "District Management",
+      description: `Opening management panel for ${districtName} district.`,
+    });
+  };
+
+  const handleAdminAction = (action: string) => {
+    setActiveAdminView(action);
+    toast({
+      title: action,
+      description: `${action} panel opened successfully.`,
+    });
+  };
+
+  const handleExportData = () => {
+    toast({
+      title: "Data Export",
+      description: "Preparing data export... Download will begin shortly.",
+    });
+    // Simulate data export
+    setTimeout(() => {
+      const data = {
+        districts,
+        stats,
+        criticalAlerts,
+        recentReports,
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'health-monitoring-data.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Export Complete",
+        description: "Data has been exported successfully.",
+      });
+    }, 2000);
   };
 
   if (activeForm === 'symptoms') {
@@ -460,9 +511,53 @@ const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ user }) => {
                       <Badge className={getRiskColor(district.riskLevel)}>
                         {district.riskLevel.toUpperCase()}
                       </Badge>
-                      <Button size="sm" variant="outline">
-                        Manage
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline" onClick={() => handleDistrictManage(district.name)}>
+                            Manage
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                          <DialogHeader>
+                            <DialogTitle>Manage {district.name} District</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <Alert>
+                              <AlertDescription>
+                                District Management Panel for {district.name}
+                              </AlertDescription>
+                            </Alert>
+                            <div className="grid grid-cols-2 gap-4">
+                              <Card>
+                                <CardContent className="p-4">
+                                  <h4 className="font-semibold">ASHA Workers</h4>
+                                  <p className="text-2xl font-bold text-primary">{district.workers}</p>
+                                  <Button className="w-full mt-2" onClick={() => toast({ title: "ASHA Workers", description: "Managing ASHA workers..." })}>
+                                    Manage Workers
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                              <Card>
+                                <CardContent className="p-4">
+                                  <h4 className="font-semibold">Active Alerts</h4>
+                                  <p className="text-2xl font-bold text-warning">{district.alerts}</p>
+                                  <Button className="w-full mt-2" onClick={() => toast({ title: "Alert Management", description: "Managing district alerts..." })}>
+                                    View Alerts
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button onClick={() => toast({ title: "Performance Report", description: "Generating district performance report..." })}>
+                                Generate Report
+                              </Button>
+                              <Button variant="outline" onClick={() => toast({ title: "Settings", description: "Opening district settings..." })}>
+                                District Settings
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                 ))}
@@ -472,25 +567,90 @@ const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ user }) => {
 
           {/* Admin Actions */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="cursor-pointer hover:shadow-md transition-shadow">
-              <CardContent className="p-4 text-center">
-                <Users className="w-8 h-8 text-primary mx-auto mb-2" />
-                <Button variant="outline" className="w-full">
-                  Manage Users
-                </Button>
-              </CardContent>
-            </Card>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Users className="w-8 h-8 text-primary mx-auto mb-2" />
+                    <Button variant="outline" className="w-full" onClick={() => handleAdminAction("Manage Users")}>
+                      Manage Users
+                    </Button>
+                  </CardContent>
+                </Card>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>User Management</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-primary">{stats.ashaWorkers}</div>
+                        <div className="text-sm text-muted-foreground">ASHA Workers</div>
+                        <Button className="w-full mt-2" onClick={() => toast({ title: "ASHA Management", description: "Managing ASHA workers..." })}>
+                          Manage ASHAs
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-secondary">{stats.healthOfficers}</div>
+                        <div className="text-sm text-muted-foreground">Health Officers</div>
+                        <Button className="w-full mt-2" onClick={() => toast({ title: "Officer Management", description: "Managing health officers..." })}>
+                          Manage Officers
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-success">{stats.totalUsers}</div>
+                        <div className="text-sm text-muted-foreground">Total Users</div>
+                        <Button className="w-full mt-2" onClick={() => toast({ title: "User Creation", description: "Creating new user..." })}>
+                          Add New User
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow">
-              <CardContent className="p-4 text-center">
-                <Settings className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <Button variant="outline" className="w-full">
-                  System Settings
-                </Button>
-              </CardContent>
-            </Card>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Settings className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <Button variant="outline" className="w-full" onClick={() => handleAdminAction("System Settings")}>
+                      System Settings
+                    </Button>
+                  </CardContent>
+                </Card>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>System Settings</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button onClick={() => toast({ title: "Alert Thresholds", description: "Configuring alert thresholds..." })}>
+                      Alert Thresholds
+                    </Button>
+                    <Button onClick={() => toast({ title: "Notification Settings", description: "Managing notification settings..." })}>
+                      Notifications
+                    </Button>
+                    <Button onClick={() => toast({ title: "API Configuration", description: "Configuring API settings..." })}>
+                      API Settings
+                    </Button>
+                    <Button onClick={() => toast({ title: "Backup Settings", description: "Managing backup configuration..." })}>
+                      Backup & Recovery
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleExportData}>
               <CardContent className="p-4 text-center">
                 <Download className="w-8 h-8 text-success mx-auto mb-2" />
                 <Button variant="outline" className="w-full">
@@ -499,14 +659,59 @@ const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ user }) => {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow">
-              <CardContent className="p-4 text-center">
-                <TrendingUp className="w-8 h-8 text-secondary mx-auto mb-2" />
-                <Button variant="outline" className="w-full">
-                  View Analytics
-                </Button>
-              </CardContent>
-            </Card>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <TrendingUp className="w-8 h-8 text-secondary mx-auto mb-2" />
+                    <Button variant="outline" className="w-full" onClick={() => handleAdminAction("View Analytics")}>
+                      View Analytics
+                    </Button>
+                  </CardContent>
+                </Card>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>Advanced Analytics Dashboard</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <BarChart3 className="w-8 h-8 text-primary mx-auto mb-2" />
+                        <Button className="w-full" onClick={() => toast({ title: "Disease Trends", description: "Loading disease trend analysis..." })}>
+                          Disease Trends
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <Activity className="w-8 h-8 text-success mx-auto mb-2" />
+                        <Button className="w-full" onClick={() => toast({ title: "Water Quality", description: "Loading water quality analytics..." })}>
+                          Water Analytics
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <MapPin className="w-8 h-8 text-warning mx-auto mb-2" />
+                        <Button className="w-full" onClick={() => toast({ title: "Risk Mapping", description: "Loading risk mapping analytics..." })}>
+                          Risk Mapping
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <Calendar className="w-8 h-8 text-secondary mx-auto mb-2" />
+                        <Button className="w-full" onClick={() => toast({ title: "Predictions", description: "Loading ML predictions..." })}>
+                          ML Predictions
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </TabsContent>
       </Tabs>
